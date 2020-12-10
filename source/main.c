@@ -209,7 +209,6 @@ void MovePlayer(Tilemap* map ,playerStruct*Player)
     }
 
 
-	//scanf("%f %f %f", &filoat1, &filoat2, &filoat3);
 	//saga doru git
     if(IsGamepadButtonDown(0, GAMEPAD_BUTTON_LEFT_FACE_RIGHT) || (GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_X) > 0)){
         Player->accel += 0.5f;
@@ -233,7 +232,7 @@ void MovePlayer(Tilemap* map ,playerStruct*Player)
 	//maks hizi
 	if (Player->accel < -Player->maxSpeed) 
 		Player->accel = -Player->maxSpeed;
-	//yere dusmemesi icin koruma XD
+	//yere dusmemesi icin koruma xD
 	if (Player->Position.y > screenHeight+150){
 		Player->Position.y = screenHeight+150;
 		Player->jump = true;
@@ -244,19 +243,20 @@ void MovePlayer(Tilemap* map ,playerStruct*Player)
 	
 	
 	//ziplama
-	if(IsGamepadButtonDown(0, GAMEPAD_BUTTON_RIGHT_FACE_RIGHT) && Player->jump && Player->jetfuel > Player->maxfuel / 5){
+	if(IsGamepadButtonDown(0, GAMEPAD_BUTTON_RIGHT_FACE_RIGHT) && Player->jump){
 		Player->yvel = -Player->jumppower;
 		Player->jump = false;
-		Player->jetfuel -= Player->maxfuel / 5;
+		//Player->jetfuel -= Player->maxfuel / 5;
 	}
 	if (!IsGamepadButtonDown(0, GAMEPAD_BUTTON_RIGHT_FACE_RIGHT)) {
 		Player->jump = true;
 	}
+	else Player->jump = false;
 	//jetpack
 	if(IsGamepadButtonDown(0, GAMEPAD_BUTTON_RIGHT_FACE_DOWN)){
 		if (Player->yvel > -grav && Player->jetfuel > 0) {
 			Player->yvel = Player->yvel - Player->power;
-			Player->jetfuel -= 6;
+			Player->jetfuel -= 36;
 		}
 	}
 	else {
@@ -292,6 +292,7 @@ void MovePlayer(Tilemap* map ,playerStruct*Player)
 	
 	touchedthistime[1] = false;
 	touchedthistime[0] = false;
+	Player->jump = false;
 	while (x<yuvarlatirmis.x+3){
 		while (y<yuvarlatirmis.y+3){
 			//oyuncunun kolijin boksunu aliyo
@@ -320,6 +321,7 @@ void MovePlayer(Tilemap* map ,playerStruct*Player)
 								break;
 							}
 							Player->accel = Player->accel + Player->acceldegisken;
+							
 						}
 						//y kolijini
 						while (true) {
@@ -330,6 +332,7 @@ void MovePlayer(Tilemap* map ,playerStruct*Player)
 								break;
 							}
 							Player->yvel = Player->yvel + Player->yveldegisken;
+							if(Player->yveldegisken <0) Player->jump = true;
 							//Player->jump = true;
 						}
 					}
@@ -417,16 +420,19 @@ int main(void)
 	//chdir("sdmc:/");
 	
 	//romfsMountSelf("romfs");
-
+	int boxnumber = 2;
 	romfsInit();
     playerStruct Player;
-	boxStruct Box;
-	Box.accel = 0;
-	Box.yvel = 0;
+	boxStruct Box[50];
+	for(int i = 0;i<boxnumber;i++){
+		Box[i].accel = 0;
+		Box[i].yvel = 0;
+		Box[i].Position.x = 0;
+		Box[i].Position.y = 0;
+	}
+	Box[1].Position.x = 268;
     Player.Position.x = 280.0;
     Player.Position.y = 100.0;
-	Box.Position.x = 0;
-	Box.Position.y = 0;
     Player.power = 0.7f;
     Player.maxSpeed = 6;
     Player.jumppower = 6;
@@ -497,8 +503,8 @@ int main(void)
     
     SetTargetFPS(60); 
 
-	Box.Position.x = 128;
-	Box.Position.y = 32;
+	Box[0].Position.x = 128;
+	Box[0].Position.y = 32;
 
 	int color;
 	int redvalue;
@@ -542,14 +548,9 @@ int main(void)
 
 	Rectangle miniplayer;
 	Rectangle touchscreen = { 61,68,198,118 };
-
-
-
 	bool ingame = false;
 	bool maploaded = false;
-	
 	bool home;
-	
 	//idk what the frick the code is doing from this point
 	
 	
@@ -560,7 +561,7 @@ int main(void)
 			touchPosition = GetTouchPosition(0);
 			if (paused == false) {
 				MovePlayer(&map, &Player);
-				MoveBox(&map, &Box);
+				for(int i  = 0; i<boxnumber;i++) MoveBox(&map, &Box[i]);
 				if ((touchPosition.x > 0) && (touchPosition.y > 0))   // Make sure point is not (-1,-1) as this means there is no touch for it
 				{
 					touch = true;
@@ -689,12 +690,15 @@ int main(void)
 				minimaprender = LoadTextureFromImage(minimap);
 				UnloadImage(minimap);
 
-				Box.accel = 0;
-				Box.yvel = 0;
 				Player.Position.x = 280.0;
 				Player.Position.y = 100.0;
-				Box.Position.x = 0;
-				Box.Position.y = 0;
+				for(int i = 0;i<boxnumber;i++){
+					Box[i].accel = 0;
+					Box[i].yvel = 0;
+					Box[i].Position.x = 0;
+					Box[i].Position.y = 0;
+				}
+				Box[1].Position.x = 268;
 				Player.power = 0.7f;
 				Player.maxSpeed = 6;
 				Player.jumppower = 6;
@@ -709,8 +713,8 @@ int main(void)
 				Player.jetfuel = 1500;
 				Player.maxfuel = 1500;
 				//map--------------------------------------------------------------------------
-				Box.Position.x = 128;
-				Box.Position.y = 32;
+				Box[0].Position.x = 128;
+				Box[0].Position.y = 32;
 				ingame = true;
 				paused = false;
 				maploaded = true;
@@ -753,8 +757,8 @@ int main(void)
 					}
 					//DrawTexture(terain, 0, 0, WHITE);
 					//DrawTexture(buffer, 0 - ((int)Player.Position.x % 16), 0 - ((int)Player.Position.y % 16), WHITE);
-					DrawTexture(box, Box.Position.x, Box.Position.y + 1, WHITE);
-					DrawTexture(box, Box.Position.x, Box.Position.y + 1, WHITE);
+					for(int i  = 0; i<boxnumber;i++)DrawTexture(box, Box[i].Position.x, Box[i].Position.y + 1, WHITE);
+					
 					DrawTexturePro(Govde[Player.flipped], sourceRec, destRec, origin, (int)Player.accel, WHITE);
 					DrawTexturePro(Kafa[Player.flipped], sourceRec, destRec, origin, (int)Player.accel, WHITE);
 				}
@@ -808,12 +812,12 @@ int main(void)
 
 				DrawRectangleRec(miniplayer, GREEN);
 
-				Rectangle miniplayer2 = { (int)(-Box.Position.x / 2) + 141 + 120 - 20,(int)(-Box.Position.y / 2) + 68 + 74 + 14 , 8, 8 };
+				Rectangle miniplayer2 = { (int)(-Box[0].Position.x / 2) + 141 + 120 - 20,(int)(-Box[0].Position.y / 2) + 68 + 74 + 14 , 8, 8 };
 				//DrawRectangleRec(miniplayer2, RED);
 
 				DrawTexture(menu, 80, 0, WHITE);
 				
-				//DrawText(FormatText("Touch X [%i]:", (int)crosshair.x), 90, 30, 20, RED);
+				DrawText(FormatText("Jump [%i]:", (int)Player.jump), 90, 30, 20, RED);
 				//DrawText(FormatText("Touch Y [%i]:", (int)crosshair.y), 90, 50, 20, RED);
 				redvalue = GetTile(&map, destRec.x / 16, destRec.y / 16);
 				//DrawText(FormatText("3ds/platformer_data/gfx/lvl%i.png", level), 80, 110, 20, RED);
