@@ -25,12 +25,22 @@ bool levelbuttons[2] = { 0,0 };
 bool lastlevelbuttons[2] = { 0,0 };
 bool touchedthistime[2];
 
+float round(float var)
+{
+	// 37.66666 * 100 =3766.66 
+	// 3766.66 + .5 =3767.16    for rounding off value 
+	// then type cast to int so value is 3767 
+	// then divided by 100 so the value converted into 37.67 
+	float value = (int)(var * 100 + .5);
+	return (float)value / 100;
+}
+
+
 #include "include/structs.h"
 #include "include/tilemap.h"
 #include "include/entity.h"
 #include "include/player.h"
 
-//osSetSpeedupEnable(true);
 
 
 
@@ -53,7 +63,6 @@ int main(void)
 	
 	//romfsMountSelf("romfs");
 	int boxnumber = 2;
-	int entitynumber = 3;
 	romfsInit();
     playerStruct Player;
 	boxStruct Box[50];
@@ -63,23 +72,6 @@ int main(void)
 		Box[i].Position.x = 0;
 		Box[i].Position.y = 0;
 	}
-
-	entityStruct entity[50];
-	for (int i = 0; i < entitynumber; i++) {
-		entity[i].yvel = 0;
-		entity[i].xvel = 0;
-		entity[i].width = 16;
-		entity[i].height = 16;
-		entity[i].xveldegisken = 0;
-		entity[i].yveldegisken = 0;
-	}
-	entity[0].Position.x = 353;
-	entity[0].Position.y = 0;
-	entity[1].Position.x = 345;
-	entity[1].Position.y = -64;
-	entity[2].Position.x = 340;
-	entity[2].Position.y = -96;
-
 	Box[1].Position.x = 268;
     Player.Position.x = 280.0;
     Player.Position.y = 100.0;
@@ -102,6 +94,7 @@ int main(void)
 
 	Vector2 LastPlayerPos = { (int)(Player.Position.x / 16) - 1,(int)(Player.Position.y / 16) - 1};
 
+    
     InitWindow(screenWidth, screenHeight, "Platformer Test by OHASANOV");
 
     Image govde = LoadImage("romfs:/platformer_data/gfx/Govde1.png"); 
@@ -110,25 +103,38 @@ int main(void)
     Govde[0] = LoadTextureFromImage(govde);
     ImageFlipHorizontal(&govde);
     Govde[1] = LoadTextureFromImage(govde);
+
 	UnloadImage(govde);
+
     Image sImage = LoadImage("romfs:/platformer_data/gfx/shipTileSet.png");
     Texture2D Tex = LoadTextureFromImage(sImage); 
 	UnloadImage(sImage);
+
 	Image Mouse = LoadImage("romfs:/platformer_data/gfx/mouse.png");
 	Texture2D mouse = LoadTextureFromImage(Mouse);
 	UnloadImage(Mouse);
+	
 	Image boxImg = LoadImage("romfs:/platformer_data/gfx/box.png");
 	Texture2D box = LoadTextureFromImage(boxImg); 
 	UnloadImage(boxImg);
+
 	Image menuImg = LoadImage("romfs:/platformer_data/gfx/Menu.png");
 	Texture2D menu = LoadTextureFromImage(menuImg);
 	UnloadImage(menuImg);
+	
+	//Image background = LoadImage("3ds/platformer_data/gfx/SPACESHIP-BACKGROUND.png");
+	//Texture2D back = LoadTextureFromImage(background); 
+	
     Image kafa = LoadImage("romfs:/platformer_data/gfx/Kafa.png");
+
+	
+
     ImageFormat(&kafa, UNCOMPRESSED_R8G8B8A8);
     Texture2D Kafa[2];
     Kafa[0] = LoadTextureFromImage(kafa);
     ImageFlipHorizontal(&kafa);
     Kafa[1] = LoadTextureFromImage(kafa);
+
 	UnloadImage(kafa);
 
     Camera2D camera = { 0 };
@@ -147,10 +153,33 @@ int main(void)
 	int y;
 	int x;
 	//---------------------map-loading---------------------
-	int level = 3;
-	Tilemap map;
-	Texture2D minimaprender;
-	Image minimap;
+	int level = 2;
+
+	Image levelImg = LoadImage(FormatText("romfs:/platformer_data/gfx/lvl%i.png", level));
+	Tilemap map = LoadMapFromImage(levelImg);
+	UnloadImage(levelImg);
+	Vector2 size = { 2,2 };
+	while (map.width > size.x) {
+		size.x *= 2;
+	}
+	while (map.height > size.y) {
+		size.y *= 2;
+	}
+	
+	Image minimap = GenImageColor(size.x, size.y, BLANK);
+
+	x = 0;
+	for (; x < map.width; x++) {
+		y = 0;
+		for (; y < map.height; y++) {
+			if (GetTile(&map, x, y) != 0) {
+				ImageDrawPixel(&minimap, x, y, GRAY);
+			}
+		}
+	}
+	Texture2D minimaprender = LoadTextureFromImage(minimap);
+	UnloadImage(minimap);
+	//---------------------map-loading---------------------
 	Vector2 touchPosition = {0,0};
 	Vector2 lasttouchPosition = { 0,0 };
 	Vector2 crosshair = { 0,0 };
@@ -163,8 +192,8 @@ int main(void)
 	Rectangle touchscreen = { 61,68,198,118 };
 	bool ingame = false;
 	bool maploaded = false;
+	bool home;
 	bool gun = false;
-
 	//idk what the frick the code is doing from this point
 	
 	
@@ -174,15 +203,8 @@ int main(void)
 
 			touchPosition = GetTouchPosition(0);
 			if (paused == false) {
-				MovePlayer(&map, &Player, Box, entitynumber, &entity);
+				MovePlayer(&map, &Player);
 				for(int i  = 0; i<boxnumber;i++) MoveBox(&map, &Box[i]);
-				if (IsGamepadButtonDown(0, GAMEPAD_BUTTON_RIGHT_FACE_UP)) {
-					entity[0].xvel = -3;
-				}
-				if (IsGamepadButtonDown(0, GAMEPAD_BUTTON_RIGHT_FACE_LEFT)) {
-					entity[0].xvel = 3;
-				}
-				for (int i = 0; i < entitynumber; i++) MoveEntity(&map, &entity[i],entitynumber, &entity,i,true,-1,&Player);
 				if ((touchPosition.x > 0) && (touchPosition.y > 0))   // Make sure point is not (-1,-1) as this means there is no touch for it
 				{
 					touch = true;
@@ -197,6 +219,7 @@ int main(void)
 				else {
 					touch = false;
 					mouseinuse = false;
+					home = false;
 				}
 
 				Rectangle pausebutton = { 276,143,40,40 };
@@ -205,9 +228,10 @@ int main(void)
 				}
 				Rectangle homebutton = { 4,143,40,40 };
 				
-				if (CheckCollisionPointRec(lasttouchPosition, homebutton) && touch && !mouseinuse) {
+				if (CheckCollisionPointRec(lasttouchPosition, homebutton) && touch && !mouseinuse && !home) {
 					ingame = false;
 					maploaded = true;
+					home = true;
 				}
 			}
 
@@ -238,18 +262,19 @@ int main(void)
 			}
 			else {
 				touch = false;
+				home = false;
 				gun = false;
 			}
 			
-			if (ButtonTouched(4, 4, 40, 40, touchPosition, touch)&& maploaded) {
+			if (ButtonTouched(4, 4, 40, 40, touchPosition, touch) && !home && maploaded) {
 				maploaded = false;
 				level = 1;
 			}
-			if (ButtonTouched(48, 4, 40, 40, touchPosition, touch)&& maploaded) {
+			if (ButtonTouched(48, 4, 40, 40, touchPosition, touch) && !home && maploaded) {
 				maploaded = false;
 				level = 2;
 			}
-			if (ButtonTouched(92, 4, 40, 40, touchPosition, touch)&& maploaded) {
+			if (ButtonTouched(92, 4, 40, 40, touchPosition, touch) && !home && maploaded) {
 				maploaded = false;
 				level = 3;
 			}
@@ -370,9 +395,7 @@ int main(void)
 					//DrawTexture(buffer, 0 - ((int)Player.Position.x % 16), 0 - ((int)Player.Position.y % 16), WHITE);
 					for(int i  = 0; i<boxnumber;i++) DrawTexture(box, Box[i].Position.x, Box[i].Position.y + 1, WHITE);
 					//for (int i = 0; i < boxnumber; i++) DrawRectangle(Box[i].Position.x, Box[i].Position.y, 8, 8, RED);
-					for (int i = 0; i < entitynumber; i++) {
-						DrawRectangle(entity[i].Position.x, entity[i].Position.y + 1, entity[i].width, entity[i].height, (Color) {255,i*100,255,255});
-					}
+					
 					DrawTexturePro(Govde[Player.flipped], sourceRec, destRec, origin, (int)Player.accel, WHITE);
 					DrawTexturePro(Kafa[Player.flipped], sourceRec, destRec, origin, (int)Player.accel, WHITE);
 				}
@@ -431,12 +454,12 @@ int main(void)
 
 				DrawTexture(menu, 80, 0, WHITE);
 				
-				//DrawText(FormatText("Accel [%f]:", (float)Player.accel), 90, 30, 20, RED);
+				DrawText(FormatText("Accel [%f]:", (float)Player.accel), 90, 30, 20, RED);
 				//DrawText(FormatText("Touch Y [%i]:", (int)crosshair.y), 90, 50, 20, RED);
 				redvalue = GetTile(&map, destRec.x / 16, destRec.y / 16);
 				//DrawText(FormatText("3ds/platformer_data/gfx/lvl%i.png", level), 80, 110, 20, RED);
-				DrawText(FormatText("Box X [%f]:", entity[1].xvel), 90, 130, 20, RED);
-				DrawText(FormatText("Box Y [%f]:", entity[1].yvel), 90, 150, 20, RED);
+				//DrawText(FormatText("Joy X [%f]:", GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_X)), 90, 130, 20, RED);
+				//DrawText(FormatText("Joy Y [%f]:", GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_Y)), 90, 150, 20, RED);
 				Rectangle fuel = { 90, 210, Player.jetfuel / 5, 20 };
 				color = (int)(Player.maxfuel / 250);
 				DrawRectangleRec(fuel, (Color) { 255 - (int)(Player.jetfuel / color), (int)(Player.jetfuel / color), 0, 255 });
